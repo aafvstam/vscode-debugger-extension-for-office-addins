@@ -5,10 +5,11 @@
 import { ChromeDebugAdapter, IChromeDebugSessionOpts, ChromeDebugSession, utils, logger } from 'vscode-chrome-debug-core';
 import { EdgeDebugSession } from './edgeDebugSession';
 import { DebugProtocol } from 'vscode-debugprotocol';
-import  { getAdapterPath, getSourceMapPathOverrides, usageDataObject} from './utilities';
+import  { getAdapterPath, getSourceMapPathOverrides, isSupportedWindowsVersion, usageDataObject} from './utilities';
 import * as childProcess from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 
 export class EdgeDebugAdapter extends ChromeDebugAdapter {
     private _adapterProc: childProcess.ChildProcess;
@@ -24,21 +25,28 @@ export class EdgeDebugAdapter extends ChromeDebugAdapter {
 
         // Check that debug adpater executable exists
         if (!fs.existsSync(adapterExePath)) {
-            if (utils.getPlatform() == utils.Platform.Windows) {
+            if (isSupportedWindowsVersion()) {
                 const error: string = "No Edge Diagnostics Adapter was found. Install the Edge Diagnostics Adapter (https://github.com/OfficeDev/debug-adapter-for-office-addins) and specify a valid 'adapterExecutable' path";
                 usageDataObject.sendUsageDataException("_launchAdapter", error);
                 return utils.errP(error);
             } else {
-                const error: string = "Edge debugging is only supported on Windows 10.";
+                const error: string = "Microsoft Office Add-in Debugger is only supported on Windows 10 version 1903 (build 10.0.18362) and greater.";
                 usageDataObject.sendUsageDataException("_launchAdapter", error);
                 return utils.errP(error);
             }
         }
 
+        // Check that user is running Windows 1903 (build 10.0.18362) or greater to ensure Edge webview is being used
+        if (!isSupportedWindowsVersion()) {
+            const error: string = `Microsoft Office Add-in Debugger is only supported on Windows 10 version 1903 (build 10.0.18362) and greater.  Currently installed version is ${os.release()}`;
+            usageDataObject.sendUsageDataException("_launchAdapter", error);
+            return utils.errP(error);
+        }
+
         // Check that user is running a supported version of NodeJs (10 or higher)
         const nodeVersion = parseInt(process.version.slice(1));
         if (nodeVersion < 10) {
-            const error: string = `Vscode-Debugger-For-Office-Addins require NodeJs 10 or higher.  Currently installed version is ${nodeVersion}`;
+            const error: string = `Microsoft Office Add-in Debugger requires NodeJs 10 or higher.  Currently installed version is ${nodeVersion}`;
             usageDataObject.sendUsageDataException("_launchAdapter", error);
             return utils.errP(error);
         }

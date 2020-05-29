@@ -2,7 +2,8 @@
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
 
-import {ISourceMapPathOverrides, logger, utils} from 'vscode-chrome-debug-core';
+import { ISourceMapPathOverrides, logger, utils } from 'vscode-chrome-debug-core';
+import * as os from 'os';
 import * as path from 'path';
 import * as usageData from "office-addin-usage-data";
 
@@ -31,24 +32,47 @@ export function getAdapterPath(isTest: boolean = false): string {
     const platform = utils.getPlatform();
     // There is no good way to get the system arch so detecting the program files dir
     let arch;
-    if(process.env.hasOwnProperty('ProgramFiles(x86)')){
+    if (process.env.hasOwnProperty('ProgramFiles(x86)')) {
         arch = 'x64';
     } else {
         arch = 'x86';
     }
     if (platform === utils.Platform.Windows) {
-        if(arch === 'x64'){
+        if (arch === 'x64') {
             if (isTest) {
                 return EDGE_ADAPTER_PATH.WINx64Test
-            } else
-            {
+            } else {
                 return EDGE_ADAPTER_PATH.WINx64;
             }
-        } else if(arch === 'x86'){
+        } else if (arch === 'x86') {
             return null;
         }
     }
     return null;
+}
+
+export function isSupportedWindowsVersion(): boolean {
+    if (utils.getPlatform() !== utils.Platform.Windows) {
+        return false;
+    }
+
+    // verify Windows OS version to ensure user is running Windows 10 1903 version (build 10.0.18362) or greater
+    const versionArray: number[] = getOsVersionArray();
+    if (versionArray[0] > 10) {
+        return true;
+    }
+    if (versionArray[0] == 10) {
+        if (versionArray[1] > 0) {
+            return true;
+        }
+        if (versionArray[1] == 0) {
+            if (versionArray[2] >= 18362) {
+                return true;
+            }
+        }
+    }
+
+    return false
 }
 
 export function getSourceMapPathOverrides(webRoot: string, sourceMapPathOverrides?: ISourceMapPathOverrides): ISourceMapPathOverrides {
@@ -83,4 +107,8 @@ export function replaceWebRootInSourceMapPathOverridesEntry(webRoot: string, ent
     }
 
     return entry;
+}
+
+export function getOsVersionArray(): number[] {
+    return os.release().split('.').map(version => { return parseInt(version, 10) });
 }
